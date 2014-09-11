@@ -12,6 +12,7 @@ from redis.connection import Connection
 
 from .default import DefaultClient
 from ..exceptions import ConnectionInterrupted
+from ..pool import get_connection_factory
 
 
 class SentinelClient(DefaultClient):
@@ -67,6 +68,13 @@ class SentinelClient(DefaultClient):
             host, port = sentinel.discover_master(master_name)
         else:
             host, port = random.choice([sentinel.discover_master(master_name)] + sentinel.discover_slaves(master_name))
+
+        sentinel_options = self._options.copy()
+        sentinel_options['CONNECTION_POOL_CLASS'] = 'redis.sentinel.SentinelConnectionPool'
+        sentinel_options['CONNECTION_POOL_KWARGS'] = {
+            'service_name': master_name,
+            'sentinel_manager': sentinel}
+        self.connection_factory = get_connection_factory(options=sentinel_options)
 
         return self.connection_factory.connect(host, port, db)
 
